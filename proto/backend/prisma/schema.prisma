@@ -1,0 +1,394 @@
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+model User {
+  id           String    @id @default(uuid())
+  name         String
+  email        String    @unique
+  passwordHash String
+  role         String    @default("INVESTIGATOR") // ADMIN, INVESTIGATOR, ANALYST
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  createdCases Case[]
+  auditLogs    AuditLog[]
+}
+
+model AuditLog {
+  id        String   @id @default(uuid())
+  userId    String?
+  caseId    String?
+  action    String
+  resource  String
+  details   String?  // JSON string
+  ipAddress String?
+  timestamp DateTime @default(now())
+
+  user      User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+}
+
+model Case {
+  id              String         @id @default(uuid())
+  caseNumber      String         @unique // e.g. CASE-2026-001
+  title           String
+  description     String?
+  status          String         @default("ACTIVE") // ACTIVE, UNDER_REVIEW, ON_HOLD, CLOSED
+  priority        String         @default("MEDIUM") // LOW, MEDIUM, HIGH, CRITICAL
+  createdByUserId String
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
+
+  createdByUser   User           @relation(fields: [createdByUserId], references: [id])
+  dataSources     DataSource[]
+  documents       Document[]
+  evidenceRecords EvidenceRecord[]
+  persons         Person[]
+  phones          Phone[]
+  vehicles        Vehicle[]
+  locations       Location[]
+  organizations   Organization[]
+  accounts        FinancialAccount[]
+  calls           CallRecord[]
+  transactions    FinancialTransaction[]
+  incidents       Incident[]
+  graphNodes      GraphNode[]
+  graphEdges      GraphEdge[]
+  resolutionCandidates EntityResolutionCandidate[]
+  analysisRuns    AnalysisRun[]
+  nodeMetrics     NodeMetric[]
+  alerts          Alert[]
+  reports         InvestigationReport[]
+}
+
+model DataSource {
+  id               String     @id @default(uuid())
+  caseId           String
+  name             String
+  type             String     // CDR, TRANSACTION, FIR, SURVEILLANCE, VEHICLE, SUSPECT, SOCIAL_MEDIA
+  description      String?
+  status           String     @default("UPLOADED") // UPLOADED, PROCESSING, COMPLETED, FAILED
+  uploadedByUserId String?
+  createdAt        DateTime   @default(now())
+
+  case             Case       @relation(fields: [caseId], references: [id], onDelete: Cascade)
+  documents        Document[]
+}
+
+model Document {
+  id               String           @id @default(uuid())
+  caseId           String
+  dataSourceId     String?
+  filename         String
+  originalFilename String
+  fileType         String           // CSV, JSON, TXT, PDF
+  fileSize         Int
+  storagePath      String
+  processingStatus String           @default("PENDING") // PENDING, PROCESSING, COMPLETED, FAILED
+  processingError  String?
+  recordCount      Int              @default(0)
+  warningCount     Int              @default(0)
+  uploadedByUserId String?
+  createdAt        DateTime         @default(now())
+  updatedAt        DateTime         @updatedAt
+
+  case             Case             @relation(fields: [caseId], references: [id], onDelete: Cascade)
+  dataSource       DataSource?      @relation(fields: [dataSourceId], references: [id], onDelete: SetNull)
+  evidenceRecords  EvidenceRecord[]
+}
+
+model EvidenceRecord {
+  id           String      @id @default(uuid())
+  documentId   String
+  caseId       String
+  sourceType   String      // CDR, TRANSACTION, FIR, SUSPECT, VEHICLE, MANUAL
+  rowIndex     Int?
+  pageNumber   Int?
+  rawSnippet   String
+  parsedData   String?     // JSON serialized object
+  confidence   Float       @default(1.0)
+  createdAt    DateTime    @default(now())
+
+  document     Document    @relation(fields: [documentId], references: [id], onDelete: Cascade)
+  case         Case        @relation(fields: [caseId], references: [id], onDelete: Cascade)
+
+  graphNodes   GraphNode[]
+  graphEdges   GraphEdge[]
+}
+
+model Person {
+  id               String      @id @default(uuid())
+  caseId           String
+  canonicalName    String
+  rawName          String
+  aliases          String?     // JSON array of strings
+  gender           String?
+  nationality      String?
+  notes            String?
+  confidence       Float       @default(1.0)
+  evidenceRecordId String?
+  createdAt        DateTime    @default(now())
+  updatedAt        DateTime    @updatedAt
+
+  case             Case        @relation(fields: [caseId], references: [id], onDelete: Cascade)
+}
+
+model Phone {
+  id               String      @id @default(uuid())
+  caseId           String
+  canonicalNumber  String      // e.g. +919876543210
+  rawNumber        String
+  ownerPersonId    String?
+  serviceProvider  String?
+  evidenceRecordId String?
+  createdAt        DateTime    @default(now())
+
+  case             Case        @relation(fields: [caseId], references: [id], onDelete: Cascade)
+}
+
+model Vehicle {
+  id                 String      @id @default(uuid())
+  caseId             String
+  registrationNumber String      // normalized uppercase alphanumeric
+  make               String?
+  model              String?
+  color              String?
+  ownerPersonId      String?
+  evidenceRecordId   String?
+  createdAt          DateTime    @default(now())
+
+  case               Case        @relation(fields: [caseId], references: [id], onDelete: Cascade)
+}
+
+model Location {
+  id               String      @id @default(uuid())
+  caseId           String
+  name             String
+  address          String?
+  city             String?
+  state            String?
+  country          String?
+  latitude         Float?
+  longitude        Float?
+  evidenceRecordId String?
+  createdAt        DateTime    @default(now())
+
+  case             Case        @relation(fields: [caseId], references: [id], onDelete: Cascade)
+}
+
+model Organization {
+  id                 String      @id @default(uuid())
+  caseId             String
+  name               String
+  type               String?
+  description        String?
+  registrationNumber String?
+  evidenceRecordId   String?
+  createdAt          DateTime    @default(now())
+
+  case               Case        @relation(fields: [caseId], references: [id], onDelete: Cascade)
+}
+
+model FinancialAccount {
+  id               String      @id @default(uuid())
+  caseId           String
+  accountNumber    String
+  bankName         String?
+  accountType      String?
+  holderPersonId   String?
+  evidenceRecordId String?
+  createdAt        DateTime    @default(now())
+
+  case             Case        @relation(fields: [caseId], references: [id], onDelete: Cascade)
+}
+
+model CallRecord {
+  id               String      @id @default(uuid())
+  caseId           String
+  callerPhone      String
+  receiverPhone    String
+  timestamp        DateTime
+  durationSec      Int         @default(0)
+  callType         String      @default("VOICE") // VOICE, SMS, VOIP
+  evidenceRecordId String?
+  createdAt        DateTime    @default(now())
+
+  case             Case        @relation(fields: [caseId], references: [id], onDelete: Cascade)
+}
+
+model FinancialTransaction {
+  id                String      @id @default(uuid())
+  caseId            String
+  transactionRef    String
+  senderAccountId   String
+  receiverAccountId String
+  amount            Float
+  currency          String      @default("INR")
+  timestamp         DateTime
+  transactionType   String      @default("TRANSFER")
+  evidenceRecordId  String?
+  createdAt         DateTime    @default(now())
+
+  case              Case        @relation(fields: [caseId], references: [id], onDelete: Cascade)
+}
+
+model Incident {
+  id               String      @id @default(uuid())
+  caseId           String
+  title            String
+  description      String?
+  incidentType     String?
+  locationId       String?
+  occurredAt       DateTime
+  evidenceRecordId String?
+  createdAt        DateTime    @default(now())
+
+  case             Case        @relation(fields: [caseId], references: [id], onDelete: Cascade)
+}
+
+// ============================================================
+// PHASE 2 & 3 UNIFIED GRAPH & ANALYTICS MODELS
+// ============================================================
+
+model GraphNode {
+  id               String           @id @default(uuid())
+  caseId           String
+  entityType       String           // PERSON, PHONE, VEHICLE, LOCATION, ORGANIZATION, ACCOUNT, INCIDENT, CASE
+  canonicalValue   String
+  rawValues        String?          // JSON array of strings
+  entityRefId      String?          // optional pointer to Person.id, Phone.id, etc.
+  confidence       Float            @default(1.0)
+  evidenceRecordId String?
+  metadata         String?          // JSON metadata (aliases, role, photo, notes)
+  createdAt        DateTime         @default(now())
+  updatedAt        DateTime         @updatedAt
+
+  case             Case             @relation(fields: [caseId], references: [id], onDelete: Cascade)
+  evidenceRecord   EvidenceRecord?  @relation(fields: [evidenceRecordId], references: [id], onDelete: SetNull)
+
+  outEdges         GraphEdge[]      @relation("SourceNode")
+  inEdges          GraphEdge[]      @relation("TargetNode")
+  metrics          NodeMetric[]
+
+  @@index([caseId, entityType, canonicalValue])
+  @@index([caseId, canonicalValue])
+}
+
+model GraphEdge {
+  id               String          @id @default(uuid())
+  caseId           String
+  sourceNodeId     String
+  targetNodeId     String
+  relationshipType String          // CALLED, TRANSFERRED_MONEY, MET, WORKS_FOR, OWNS, USED, VISITED, ASSOCIATED_WITH, TRAVELLED_TO, MENTIONED_IN
+  isEvent          Boolean         @default(false)
+  eventTimestamp   DateTime?
+  confidence       Float           @default(1.0)
+  weight           Float           @default(1.0) // Frequency count or monetary volume
+  evidenceRecordId String?
+  metadata         String?         // JSON: duration, amount, location, channel
+  createdAt        DateTime        @default(now())
+  updatedAt        DateTime        @updatedAt
+
+  case             Case            @relation(fields: [caseId], references: [id], onDelete: Cascade)
+  sourceNode       GraphNode       @relation("SourceNode", fields: [sourceNodeId], references: [id], onDelete: Cascade)
+  targetNode       GraphNode       @relation("TargetNode", fields: [targetNodeId], references: [id], onDelete: Cascade)
+  evidenceRecord   EvidenceRecord? @relation(fields: [evidenceRecordId], references: [id], onDelete: SetNull)
+
+  @@index([caseId, sourceNodeId, targetNodeId])
+  @@index([caseId, relationshipType])
+}
+
+model EntityResolutionCandidate {
+  id              String    @id @default(uuid())
+  caseId          String
+  primaryNodeId   String
+  candidateNodeId String
+  similarityScore Float
+  matchReasons    String    // JSON array of strings
+  status          String    @default("PENDING_REVIEW") // PENDING_REVIEW, ACCEPTED_MERGED, REJECTED
+  reviewedByUserId String?
+  reviewedAt      DateTime?
+  createdAt       DateTime  @default(now())
+
+  case            Case      @relation(fields: [caseId], references: [id], onDelete: Cascade)
+
+  @@index([caseId, status])
+}
+
+model AnalysisRun {
+  id                  String       @id @default(uuid())
+  caseId              String
+  runType             String       @default("FULL_INTELLIGENCE")
+  status              String       @default("COMPLETED")
+  nodeCount           Int          @default(0)
+  edgeCount           Int          @default(0)
+  executionDurationMs Int          @default(0)
+  parameters          String?      // JSON
+  createdAt           DateTime     @default(now())
+
+  case                Case         @relation(fields: [caseId], references: [id], onDelete: Cascade)
+  nodeMetrics         NodeMetric[]
+  alerts              Alert[]
+}
+
+model NodeMetric {
+  id                    String       @id @default(uuid())
+  caseId                String
+  analysisRunId         String
+  graphNodeId           String
+  degreeCentrality      Int          @default(0)
+  inDegree              Int          @default(0)
+  outDegree             Int          @default(0)
+  betweennessCentrality Float        @default(0.0)
+  communityId           Int          @default(0)
+  networkRelevanceScore Int          @default(0) // 0-100
+  relevanceFactors      String?      // JSON array of factor objects with evidence citations
+  isPotentialBridge     Boolean      @default(false)
+  createdAt             DateTime     @default(now())
+
+  case                  Case         @relation(fields: [caseId], references: [id], onDelete: Cascade)
+  analysisRun           AnalysisRun  @relation(fields: [analysisRunId], references: [id], onDelete: Cascade)
+  graphNode             GraphNode    @relation(fields: [graphNodeId], references: [id], onDelete: Cascade)
+
+  @@index([caseId, networkRelevanceScore])
+}
+
+model Alert {
+  id                String       @id @default(uuid())
+  caseId            String
+  analysisRunId     String?
+  severity          String       @default("MEDIUM") // CRITICAL, HIGH, MEDIUM, LOW
+  alertType         String       // TRANSACTION_CHAIN, COMMUNICATION_SPIKE, SHARED_INFRASTRUCTURE, NETWORK_BRIDGE, ENTITY_RESOLUTION_MATCH, HIGH_RISK_TIMELINE
+  title             String
+  description       String
+  involvedNodeIds   String?      // JSON array of string UUIDs
+  involvedEdgeIds   String?      // JSON array of string UUIDs
+  evidenceRecordIds String?      // JSON array of string UUIDs
+  status            String       @default("ACTIVE") // ACTIVE, ACKNOWLEDGED, DISMISSED
+  createdAt         DateTime     @default(now())
+
+  case              Case         @relation(fields: [caseId], references: [id], onDelete: Cascade)
+  analysisRun       AnalysisRun? @relation(fields: [analysisRunId], references: [id], onDelete: SetNull)
+
+  @@index([caseId, severity, status])
+}
+
+model InvestigationReport {
+  id                 String    @id @default(uuid())
+  caseId             String
+  title              String
+  authorUserId       String?
+  executiveSummary   String
+  keyFindings        String    // JSON
+  clusterSummary     String    // JSON
+  timelineHighlights String    // JSON
+  reportData         String    // Complete serialized JSON
+  generatedAt        DateTime  @default(now())
+
+  case               Case      @relation(fields: [caseId], references: [id], onDelete: Cascade)
+}

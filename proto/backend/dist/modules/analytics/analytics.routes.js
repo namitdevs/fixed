@@ -1,0 +1,15 @@
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+const express_1 = require("express");
+const analytics_controller_1 = require("./analytics.controller");
+const auth_1 = require("../../middleware/auth");
+const router = (0, express_1.Router)({ mergeParams: true });
+router.use(auth_1.authenticateToken);
+router.post('/run', analytics_controller_1.AnalyticsController.runAnalytics);
+router.get('/overview', analytics_controller_1.AnalyticsController.getOverview);
+router.get('/centrality', analytics_controller_1.AnalyticsController.getCentrality);
+router.get('/communities', analytics_controller_1.AnalyticsController.getCommunities);
+router.get('/patterns', analytics_controller_1.AnalyticsController.getPatterns);
+router.get('/timeline', analytics_controller_1.AnalyticsController.getTimeline);
+router.get('/nodes/:nodeId/score', analytics_controller_1.AnalyticsController.getNodeScore);
+exports.default = router;

@@ -1,0 +1,10 @@
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+const express_1 = require("express");
+const alerts_controller_1 = require("./alerts.controller");
+const auth_1 = require("../../middleware/auth");
+const router = (0, express_1.Router)({ mergeParams: true });
+router.use(auth_1.authenticateToken);
+router.get('/', alerts_controller_1.AlertController.list);
+router.patch('/:alertId', alerts_controller_1.AlertController.updateStatus);
+exports.default = router;

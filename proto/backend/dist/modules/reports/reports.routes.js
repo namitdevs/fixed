@@ -1,0 +1,12 @@
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+const express_1 = require("express");
+const reports_controller_1 = require("./reports.controller");
+const auth_1 = require("../../middleware/auth");
+const router = (0, express_1.Router)({ mergeParams: true });
+router.use(auth_1.authenticateToken);
+router.post('/generate', reports_controller_1.ReportsController.generate);
+router.get('/export/pdf', reports_controller_1.ReportsController.exportPdf);
+router.get('/export/json', reports_controller_1.ReportsController.exportJson);
+router.get('/export/csv', reports_controller_1.ReportsController.exportCsv);
+exports.default = router;

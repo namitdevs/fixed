@@ -1,0 +1,11 @@
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+const express_1 = require("express");
+const datasources_controller_1 = require("./datasources.controller");
+const auth_1 = require("../../middleware/auth");
+const router = (0, express_1.Router)({ mergeParams: true });
+router.use(auth_1.authenticateToken);
+router.post('/', datasources_controller_1.DataSourceController.create);
+router.get('/', datasources_controller_1.DataSourceController.listByCase);
+router.get('/:id', datasources_controller_1.DataSourceController.getById);
+exports.default = router;

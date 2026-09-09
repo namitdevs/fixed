@@ -1,0 +1,13 @@
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+const express_1 = require("express");
+const cases_controller_1 = require("./cases.controller");
+const auth_1 = require("../../middleware/auth");
+const router = (0, express_1.Router)();
+router.use(auth_1.authenticateToken);
+router.post('/', cases_controller_1.CaseController.create);
+router.get('/', cases_controller_1.CaseController.list);
+router.get('/:id', cases_controller_1.CaseController.getById);
+router.patch('/:id', cases_controller_1.CaseController.update);
+router.delete('/:id', cases_controller_1.CaseController.remove);
+exports.default = router;
